@@ -2,6 +2,9 @@
 
 #include "SFML/Graphics.hpp"
 
+const int ROWS = 3;
+const int COLS = 5;
+
 class App
 {
 private:
@@ -9,34 +12,36 @@ private:
 	sf::View view;
 	sf::RenderWindow window;
 	sf::Clock clock;
-	
+
+	//Measures duration of last frame
+	float deltaTime;
 
 	//Paddle
 	sf::RectangleShape paddle;
-
 	float paddleWidth;
 	float paddleHeight;
 	float speed;
+
 
 	// Ball
 	sf::CircleShape ball;
 	float radius;
 	float xSpeed;
 	float ySpeed;
+	float xStart;
+	float yStart;
 
 	float pad;
 
-	//Brick
-	sf::RectangleShape brick;
-
+	//Bricks
+	sf::RectangleShape Bricks[ROWS][COLS];
+	bool collidable[ROWS][COLS];
 	float brickHeight;
 	float brickWidth;
-	
-	bool collidable;
 
+	float gap;
+	float edgeGap;
 
-	//Measures duration of last frame
-	float deltaTime;
 
 public:
 	App(const char* title, int screenWidth, int screenHeight, int screenBpp);

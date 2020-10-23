@@ -2,7 +2,7 @@
 
 int main()
 {
-	sf::RenderWindow Window(sf::VideoMode(640, 480), "SFML works!");
+	sf::RenderWindow Window(sf::VideoMode(640, 480), "2D Array of Bricks");
 
 	const int ROWS = 3;
 	const int COLS = 5;
