@@ -22,15 +22,13 @@ private:
 	float paddleHeight;
 	float speed;
 
-
-	// Ball
+	//Ball
 	sf::CircleShape ball;
 	float radius;
 	float xSpeed;
 	float ySpeed;
 	float xStart;
 	float yStart;
-
 	float pad;
 
 	//Bricks
@@ -38,9 +36,19 @@ private:
 	bool collidable[ROWS][COLS];
 	float brickHeight;
 	float brickWidth;
-
 	float gap;
 	float edgeGap;
+
+	//Game Logic
+	sf::Font font;
+	sf::Text scoreText;
+	sf::Text livesText;
+	sf::Color scoreColour;
+	int playerScore;
+	int playerLives;
+	int brickPoints;
+	int bricksLeft;
+
 
 
 public:

@@ -1,5 +1,7 @@
 #include "App.h"
 
+using namespace std;
+
 //Constructor
 App::App(const char* title, int screenWidth, int screenHeight, int screenBpp)
 {
@@ -18,6 +20,7 @@ App::~App()
 bool App::Init()
 {
 	//Initialize App data members
+	
 
 	//Paddle
 	paddleHeight = 30;
@@ -33,7 +36,7 @@ bool App::Init()
 	//Bricks
 	brickWidth = 100;
 	brickHeight = 30;
-	gap = 20;
+	gap = 50;
 	edgeGap = (window.getSize().x - COLS * brickWidth - (COLS - 1) * gap) / 2;
 
 
@@ -49,7 +52,32 @@ bool App::Init()
 	ball.setRadius(radius);
 
 
-	// initialise the Array of Bricks
+	//Game Logic Setup
+	playerScore = 0;
+	playerLives = 5;
+	brickPoints = 10;
+
+	//Text Setup
+	font.loadFromFile("Assets/Fonts/RetroGaming.ttf");
+	scoreColour = sf::Color::White;
+
+	//Score Text Setup
+	scoreText.setPosition(gap, 0);
+	scoreText.setString("Score: " + to_string(playerScore));
+	scoreText.setFont(font);
+	scoreText.setFillColor(scoreColour);
+	scoreText.setCharacterSize(24);
+
+	//Live Text Setup
+	livesText.setPosition(scoreText.getPosition().x + 4*gap, 0);
+	livesText.setString("Lives: " + to_string(playerLives));
+	livesText.setFont(font);
+	livesText.setFillColor(scoreColour);
+	livesText.setCharacterSize(24);
+
+
+
+	//Setup the Array of Bricks
 	for (int row = 0; row < ROWS; ++row)
 	{
 		for (int col = 0; col < COLS; ++col)
@@ -58,6 +86,8 @@ bool App::Init()
 			Bricks[row][col].setPosition(edgeGap + col * (brickWidth + gap), gap + row * (brickHeight + gap));
 			collidable[row][col] = true;
 			window.draw(Bricks[row][col]);
+
+			bricksLeft = collidable[row][col];
 		}
 
 	}
@@ -67,67 +97,111 @@ bool App::Init()
 
 void App::Update()
 {
-	//Update
+	/// UPDATE ///
 
-	// move Paddle left, frame rate independent
-	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
+
+
+	/// PADDLE INPUT DETECTION AND MOVEMENT ///
+	
+
+	// Checks that Player hasn't run out of lives
+	if (playerLives > 0)
 	{
-		if (paddle.getPosition().x >= 0)
+		// Left Paddle Movement
+		// Check if the left key is pressed
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
 		{
-			paddle.move(-speed * deltaTime, 0);
+			// Checks if the paddle's position is greater than the left bound of the screen
+			if (paddle.getPosition().x >= 0)
+			{
+				// Moves the paddle towards the left by paddle speed
+				// Multiplied by deltaTime to keep it frame rate dependant
+				paddle.move(-speed * deltaTime, 0);
+			}
+		}
+
+		// Right Paddle Movement
+		// Check if the right key is pressed
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
+		{
+			// Checks that the paddles right bound won't intersect the right bound of the screen
+			if (paddle.getPosition().x <= window.getSize().x - paddleWidth)
+			{
+				// Moves the paddle towards the right by paddle speed
+				// Multiplied by deltaTime to keep it frame rate dependant
+				paddle.move(speed * deltaTime, 0);
+			}
+
 		}
 	}
-
-	// move Paddle right, frame rate independent
-	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
-	{
-		if (paddle.getPosition().x <= window.getSize().x - paddleWidth)
-		{
-			paddle.move(speed * deltaTime, 0);
-		}
-
-	}
+	
 
 
 	
-	/// BALL COLLISION DETECTION ///
+	/// BALL & WALL COLLISION DETECTION ///
+	
 	// Left border collision detection
+	// Detects when the ball's left bound meets the screens left bound
 	if (ball.getPosition().x <= 0)
 	{
+		// Reverse horizontal velocity of the ball
 		xSpeed = -xSpeed;
 	}
+
 
 	// Right border collision detection
+	// Detects when the ball's right bound meets the screens right bound
 	if (ball.getPosition().x >= window.getSize().x - 2 * radius)
 	{
+		// Reverse horizontal velocity of the ball
 		xSpeed = -xSpeed;
 	}
 
+
 	// Top border collision detection
+	// Detects when the ball's upper bound meets the screens upper bound
 	if (ball.getPosition().y <= 0)
 	{
+		// Reverse the vertical velocity of the ball
 		ySpeed = -ySpeed;
 	}
+
 
 	// Bottom border collision detection
+	// Detects when the ball's lower bound meets the screens lower bound
 	if (ball.getPosition().y >= window.getSize().y - 2 * radius)
 	{
-		ball.setPosition(xStart, yStart);
+		// The player loses a life
+		playerLives -= 1;
+
+		// Reset the ball's position to be on top of the the middle of the paddle
+		ball.setPosition(paddle.getPosition().x + (paddleWidth/2) - radius, paddle.getPosition().y - 2*radius);
+
+		// Send the ball towards the bricks
 		ySpeed = -ySpeed;
 	}
 
-	// Detect collision with collidable brick 
-	// Check if brick has been hit
+
+
+	/// BALL & BRICK COLLISION DETECTION ///
+	
+	//For every row of bricks
 	for (int row = 0; row < ROWS; ++row)
 	{
+
+		//And For every collumn of bricks
 		for (int col = 0; col < COLS; ++col)
 		{
+			// Check IF the ball has hit the brick AND it hasn't already been hit
 			if (ball.getGlobalBounds().intersects(Bricks[row][col].getGlobalBounds()) && collidable[row][col] == true)
 			{
-				// Destroy the brick
+				// Destroy the brick - (It will no longer be collidable)
 				collidable[row][col] = false;
 
-				// Left or right border
+				// Give the player score
+				playerScore += brickPoints;
+
+				// Check IF the ball has hit the bricks Left OR Right border
 				if (
 					ball.getPosition().x > Bricks[row][col].getPosition().x + brickWidth - pad ||
 					ball.getPosition().x + 2 * radius < Bricks[row][col].getPosition().x + pad
@@ -135,11 +209,11 @@ void App::Update()
 				{
 					// Reset position
 
-					// Reverse x speed
+					// Reverse x (horizontal) velocity of ball
 					xSpeed = -xSpeed;
 				}
 
-				// Top or bottom border
+				// Check IF the ball has hit the bricks Top OR Bottom border
 				if (
 					ball.getPosition().y + 2 * radius < Bricks[row][col].getPosition().y + pad ||
 					ball.getPosition().y > Bricks[row][col].getPosition().y + brickHeight - pad
@@ -147,7 +221,7 @@ void App::Update()
 				{
 					// Reset position
 
-					// Reverse y speed
+					// Reverse y (vertical) velocity of ball
 					ySpeed = -ySpeed;
 				}
 
@@ -156,7 +230,9 @@ void App::Update()
 	}
 	
 
-	// Detect collision between Ball and Paddle
+
+	/// BALL & PADDLE COLLISION DETECTION ///
+	// Check if the ball 
 	if (ball.getGlobalBounds().intersects(paddle.getGlobalBounds()))
 	{
 		
@@ -186,8 +262,14 @@ void App::Update()
 
 	}
 
-	// Move the ball 
+	// Move the ball based on speed and frame rate
 	ball.move(xSpeed * deltaTime, ySpeed * deltaTime);
+
+
+	// Keeps the Score and Lives updated
+	scoreText.setString("Score: " + to_string(playerScore));
+	livesText.setString("Lives: " + to_string(playerLives));
+
 
 }
 
@@ -197,23 +279,35 @@ void App::Draw()
 {
 	window.clear();
 	window.setView(view);
-	// Draw
+
+	/// DRAW ///
+	//Draw the Paddle
 	window.draw(paddle);
+
+	//Draw the Ball
 	window.draw(ball);
 
-	// draw the bricks
+	//Draw the Array of Bricks
+	//For every row
 	for (int row = 0; row < ROWS; ++row)
 	{
+		//For every collumn
 		for (int col = 0; col < COLS; ++col)
 		{
+			//If it hasn't been hit already
 			if (collidable[row][col])
 			{
+				//Draw a brick
 				window.draw(Bricks[row][col]);
 			}
 		}
 	}
-	
 
+	//Draw the Text
+	window.draw(scoreText);
+	window.draw(livesText);
+
+	
 	window.display();
 	
 }
