@@ -43,7 +43,9 @@ private:
 	sf::Font font;
 	sf::Text scoreText;
 	sf::Text livesText;
+	sf::Text gameOverText;
 	sf::Color scoreColour;
+	sf::Color livesColour;
 	int playerScore;
 	int playerLives;
 	int brickPoints;

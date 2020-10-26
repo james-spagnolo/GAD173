@@ -56,10 +56,12 @@ bool App::Init()
 	playerScore = 0;
 	playerLives = 5;
 	brickPoints = 10;
+	bricksLeft = 0;
 
 	//Text Setup
 	font.loadFromFile("Assets/Fonts/RetroGaming.ttf");
 	scoreColour = sf::Color::White;
+	livesColour = sf::Color::Green;
 
 	//Score Text Setup
 	scoreText.setPosition(gap, 0);
@@ -72,8 +74,15 @@ bool App::Init()
 	livesText.setPosition(scoreText.getPosition().x + 4*gap, 0);
 	livesText.setString("Lives: " + to_string(playerLives));
 	livesText.setFont(font);
-	livesText.setFillColor(scoreColour);
+	livesText.setFillColor(livesColour);
 	livesText.setCharacterSize(24);
+
+	//Game Over Text Setup
+	gameOverText.setPosition(window.getSize().x / 4, window.getSize().y / 2);
+	gameOverText.setString("Game Over \nBricks Left: " + to_string(bricksLeft));
+	gameOverText.setFont(font);
+	gameOverText.setFillColor(scoreColour);
+	gameOverText.setCharacterSize(48);
 
 
 
@@ -85,9 +94,8 @@ bool App::Init()
 			Bricks[row][col].setSize(sf::Vector2f(brickWidth, brickHeight));
 			Bricks[row][col].setPosition(edgeGap + col * (brickWidth + gap), gap + row * (brickHeight + gap));
 			collidable[row][col] = true;
+			bricksLeft += 1;
 			window.draw(Bricks[row][col]);
-
-			bricksLeft = collidable[row][col];
 		}
 
 	}
@@ -172,7 +180,10 @@ void App::Update()
 	if (ball.getPosition().y >= window.getSize().y - 2 * radius)
 	{
 		// The player loses a life
-		playerLives -= 1;
+		if (playerLives > 0)
+		{
+			playerLives -= 1;
+		}
 
 		// Reset the ball's position to be on top of the the middle of the paddle
 		ball.setPosition(paddle.getPosition().x + (paddleWidth/2) - radius, paddle.getPosition().y - 2*radius);
@@ -200,6 +211,9 @@ void App::Update()
 
 				// Give the player score
 				playerScore += brickPoints;
+
+				// Reduces bricks left by 1
+				bricksLeft -= 1;
 
 				// Check IF the ball has hit the bricks Left OR Right border
 				if (
@@ -262,13 +276,42 @@ void App::Update()
 
 	}
 
-	// Move the ball based on speed and frame rate
-	ball.move(xSpeed * deltaTime, ySpeed * deltaTime);
+
+	/// BALL MOVEMENT ///
+	
+	//Move the ball if the player still has lives
+	if (playerLives > 0)
+	{
+		// Move the ball based on speed and frame rate
+		ball.move(xSpeed* deltaTime, ySpeed* deltaTime);
+	}
+
+
+	/// USER INTERFACE ///
+
+	if (playerLives == 4)
+	{
+		livesColour = sf::Color::Color(128, 255, 0);
+	}
+	else if (playerLives == 3)
+	{
+		livesColour = sf::Color::Color(255, 255, 0);
+	}
+	else if (playerLives == 2)
+	{
+		livesColour = sf::Color::Color(255, 128, 0);
+	}
+	else if (playerLives <= 1)
+	{
+		livesColour = sf::Color::Color(255, 0, 0);
+	}
 
 
 	// Keeps the Score and Lives updated
 	scoreText.setString("Score: " + to_string(playerScore));
 	livesText.setString("Lives: " + to_string(playerLives));
+	livesText.setFillColor(livesColour);
+	gameOverText.setString("Game Over \nBricks Left: " + to_string(bricksLeft));
 
 
 }
@@ -281,11 +324,21 @@ void App::Draw()
 	window.setView(view);
 
 	/// DRAW ///
-	//Draw the Paddle
-	window.draw(paddle);
+	
+	//Checks the Player still has lives
+	if (playerLives > 0)
+	{
+		//Draw the Paddle
+		window.draw(paddle);
 
-	//Draw the Ball
-	window.draw(ball);
+		//Draw the Ball
+		window.draw(ball);
+	}
+	else
+	{
+		//Draw the Game Over text
+		window.draw(gameOverText);
+	}
 
 	//Draw the Array of Bricks
 	//For every row
