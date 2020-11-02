@@ -21,6 +21,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "1D Arrays of Bricks", "1D A
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "2D Array of Bricks", "2D Array of Bricks\2D Array of Bricks.vcxproj", "{973DB748-97AF-4473-B11D-A592D3C6DF11}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Random Direction", "Random Direction\Random Direction.vcxproj", "{0BFDF9D9-B49E-47EF-9AA9-66A01861EBCE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -101,6 +103,14 @@ Global
 		{973DB748-97AF-4473-B11D-A592D3C6DF11}.Release|x64.Build.0 = Release|x64
 		{973DB748-97AF-4473-B11D-A592D3C6DF11}.Release|x86.ActiveCfg = Release|Win32
 		{973DB748-97AF-4473-B11D-A592D3C6DF11}.Release|x86.Build.0 = Release|Win32
+		{0BFDF9D9-B49E-47EF-9AA9-66A01861EBCE}.Debug|x64.ActiveCfg = Debug|x64
+		{0BFDF9D9-B49E-47EF-9AA9-66A01861EBCE}.Debug|x64.Build.0 = Debug|x64
+		{0BFDF9D9-B49E-47EF-9AA9-66A01861EBCE}.Debug|x86.ActiveCfg = Debug|Win32
+		{0BFDF9D9-B49E-47EF-9AA9-66A01861EBCE}.Debug|x86.Build.0 = Debug|Win32
+		{0BFDF9D9-B49E-47EF-9AA9-66A01861EBCE}.Release|x64.ActiveCfg = Release|x64
+		{0BFDF9D9-B49E-47EF-9AA9-66A01861EBCE}.Release|x64.Build.0 = Release|x64
+		{0BFDF9D9-B49E-47EF-9AA9-66A01861EBCE}.Release|x86.ActiveCfg = Release|Win32
+		{0BFDF9D9-B49E-47EF-9AA9-66A01861EBCE}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SFML/Graphics.hpp"
+#include "SFML/Audio.hpp"
 
 const int ROWS = 3;
 const int COLS = 5;
@@ -30,6 +31,7 @@ private:
 	float xStart;
 	float yStart;
 	float pad;
+	int sign;
 
 	//Bricks
 	sf::RectangleShape Bricks[ROWS][COLS];
@@ -39,17 +41,37 @@ private:
 	float gap;
 	float edgeGap;
 
-	//Game Logic
+	//Game Logic and UI
 	sf::Font font;
 	sf::Text scoreText;
 	sf::Text livesText;
-	sf::Text gameOverText;
+	sf::Text endText;
 	sf::Color scoreColour;
 	sf::Color livesColour;
+
+	bool endState;
+	bool playingSoundEffect;
+	int state;
 	int playerScore;
 	int playerLives;
 	int brickPoints;
 	int bricksLeft;
+
+	
+	//Music and Audio
+	sf::SoundBuffer brickBuffer;
+	sf::Sound brickSound;
+
+	sf::SoundBuffer gameOverBuffer;
+	sf::Sound gameOverSound;
+
+	sf::SoundBuffer winScreenBuffer;
+	sf::Sound winScreenSound;
+
+	sf::SoundBuffer missedBallBuffer;
+	sf::Sound missedBallSound;
+
+	sf::Music gameMusic;
 
 
 
