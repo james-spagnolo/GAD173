@@ -16,8 +16,11 @@ App::~App()
 	//Release Memory
 	myfile.close();
 
+	savedLevel.close();
+
 	// release the memory for the dynamically allocated array
 	for (int i = 0; i < ROWS; ++i) {
+
 		delete[] bricks[i];
 		delete[] collidable[i];
 	}
@@ -33,6 +36,12 @@ bool App::Init()
 	
 
 	myfile.open("Brick Positions.txt");
+
+	fstream savedLevel("SavedBricks.txt", ios::out);
+
+	//savedLevel.open("Saved Bricks.txt");
+
+	//savedLevel.open("Saved Level Brick Positions.txt");
 
 	SetupGraphics(); //Initializes Sprites & Textures
 
@@ -67,6 +76,8 @@ void App::Update()
 	BallAndBricks(); //Handles Ball & Brick Collisions
 		
 	RefreshUI(); //Refresh UI every frame
+
+	SaveLevel();
 
 }
 
@@ -143,6 +154,12 @@ void App::Run()
 }
 
 
+
+
+
+
+
+// Initializes game
 
 void App::SetupPaddle() {
 
@@ -260,31 +277,39 @@ void App::SetupUI() {
 	buttonHeight = 50;
 	buttonX = (window.getSize().x / 2) - (buttonWidth / 2);
 
-	for (int i = 0; i < buttonIndex; i++)
-	{
-		
 
-		if (gameState == States::levelEditor) {
+	//Button Setup
+	for (int i = 0; i < (buttonIndex - 1); i++) {
 
-			button[i].setPosition(sf::Vector2f((buttonX - buttonWidth) + buttonWidth*buttonIndex, window.getSize().y - buttonHeight));
-			button[i].setSize(sf::Vector2f(buttonWidth, buttonHeight));
-			button[i].setFillColor(sf::Color::White);
-
-		}
-
-		else {
-
-			button[i].setPosition(sf::Vector2f(buttonX, mainText.getPosition().y + (1.5 * (buttonHeight + (i * buttonHeight)))));
-			button[i].setSize(sf::Vector2f(buttonWidth, buttonHeight));
-			button[i].setFillColor(sf::Color::White);
-		}
+		button[i].setPosition(sf::Vector2f(buttonX, mainText.getPosition().y + (1.5 * (buttonHeight + (i * buttonHeight)))));
+		button[i].setSize(sf::Vector2f(buttonWidth, buttonHeight));
+		button[i].setFillColor(sf::Color::White);
 
 		buttonText[i].setPosition(sf::Vector2f(button[i].getPosition().x + (buttonWidth / 4), button[i].getPosition().y + (buttonHeight / 4)));
 		buttonText[i].setFont(font);
 		buttonText[i].setFillColor(sf::Color::Black);
 		buttonText[i].setCharacterSize(24);
-
 	}
+
+
+	//Level Editor Button Setup
+	if (gameState == States::levelEditor) {
+
+		for (int i = 0; i < buttonIndex; i++) {
+
+			button[i].setPosition(sf::Vector2f(buttonWidth * i, window.getSize().y - buttonHeight));
+			button[i].setSize(sf::Vector2f(buttonWidth, buttonHeight));
+			button[i].setFillColor(sf::Color::White);
+
+
+			buttonText[i].setPosition(sf::Vector2f(button[i].getPosition().x + (buttonWidth / 4), button[i].getPosition().y + (buttonHeight / 4)));
+			buttonText[i].setFont(font);
+			buttonText[i].setFillColor(sf::Color::Black);
+			buttonText[i].setCharacterSize(24);
+
+		}
+	}
+	
 }
 
 
@@ -340,7 +365,7 @@ void App::SetupGameLogic() {
 
 	gameState = States::menu; //Start at menu state
 
-	endState = false; //Tracks if the game has ended
+	savingLevel = false;
 
 	playingSoundEffect = false; //Tracks if a sound effect is being played
 }
@@ -352,8 +377,8 @@ void App::SetupArrayOfBricks() {
 	//Brick Variables
 	brickScale = 2;
 
-	brickHeight = 16 * brickScale;
-	brickWidth = 32 * brickScale;
+	brickHeight = 16;
+	brickWidth = 32;
 
 	gap = 50;
 	edgeGap = (window.getSize().x - COLS * brickWidth - (COLS - 1) * gap) / 2;
@@ -408,6 +433,10 @@ void App::SetupArrayOfBricks() {
 
 
 
+
+
+//Runs in Update
+
 void App::CheckGameState() {
 
 	//Check the Game State
@@ -423,8 +452,6 @@ void App::CheckGameState() {
 		endText.setString("Game Over \nBricks Left: " + to_string(bricksLeft));
 		endText.setFillColor(sf::Color::Red);
 
-		endState = true; //Game has ended
-
 		gameMusic.stop(); //Music stops playing
 
 		if (!playingSoundEffect)
@@ -437,11 +464,9 @@ void App::CheckGameState() {
 	case States::winScreen:
 		// State 2 = Win Screen
 		endText.setString("You Win! \nScore: " + to_string(playerScore));
-		endText.setFillColor(sf::Color::Green);
 		scoreColour = sf::Color::Green;
-
-		endState = true; //Game has ended
-
+		endText.setFillColor(scoreColour);
+		
 		gameMusic.stop(); //Music stops playing
 
 		if (!playingSoundEffect)
@@ -737,7 +762,7 @@ void App::RefreshUI() {
 
 		if (gameState == States::levelEditor) {
 
-			button[i].setPosition(sf::Vector2f((buttonX - 0.5*buttonWidth) + i*(buttonWidth + 5), window.getSize().y - 2*buttonHeight));
+			button[i].setPosition(sf::Vector2f(i*(buttonWidth + 5), window.getSize().y - 2*buttonHeight));
 		}
 
 		else {
@@ -784,7 +809,9 @@ void App::RefreshUI() {
 	case States::levelEditor:
 		//Level Editor
 		buttonText[0].setString("Back");
-		buttonText[1].setString("Load");
+		buttonText[1].setString("Save");
+		buttonText[2].setString("Load");
+		buttonText[3].setString("Play");
 		break;
 
 	default:
@@ -793,6 +820,8 @@ void App::RefreshUI() {
 }
 
 
+
+// Restarts Game
 
 void App::RestartGame() {
 
@@ -808,6 +837,7 @@ void App::RestartGame() {
 }
 
 
+//Runs in Event
 
 void App::ButtonEvent() {
 
@@ -884,12 +914,31 @@ void App::ButtonEvent() {
 				case States::levelEditor:
 					//Level Editor
 
-					//Button 1
+					//Back Button (Button 1)
 					if (i == 0) {
 
 						RestartGame(); //Resets the game
 						gameState = States::menu; //Return to Main Menu
 					}
+
+					//Save Button (Button 2)
+					if (i == 1) {
+
+						savingLevel = true;
+						SaveLevel();
+						//savingLevel = true;
+					}
+
+					if (i == 2) {
+
+						LoadLevel();
+					}
+
+					if (i == 3) {
+
+						PlayLevel();
+					}
+
 				default:
 					break;
 				}
@@ -901,6 +950,116 @@ void App::ButtonEvent() {
 }
 
 
+
+void App::SaveLevel() {
+
+	
+	if (savingLevel) {
+
+		savedLevel.open("SavedBricks.txt", ios::out);
+
+
+
+		for (int row = 0; row < ROWS; row++) {
+
+			for (int col = 0; col < COLS; col++) {
+
+				if (collidable[row][col]) {
+
+					savedLevel << "TT";
+				}
+
+				else {
+
+					savedLevel << "FF";
+				}
+
+				if (!(row == ROWS - 1 && col == COLS - 1)) {
+
+					savedLevel << "\t";
+				}
+
+				levelBricks += 1;
+
+			}
+		}
+
+		savedLevel.close();
+
+		savingLevel = false;
+
+		}
+		
+}
+
+
+
+void App::LoadLevel() {
+
+	loadLevel.open("SavedBricks.txt", ios::in);
+
+	//savedLevel.open("Saved Level Brick Positions.txt");
+	string isCollidable;
+	
+	bricksLeft = 0;
+
+	if (loadLevel.is_open()) {
+
+			while (!loadLevel.eof()) {
+
+					for (int row = 0; row < ROWS; row++) {
+
+						for (int col = 0; col < COLS; col++) {
+
+							
+
+							loadLevel >> isCollidable;
+
+							collidable[row][col] = false;
+
+							
+
+
+							if (isCollidable == "TT") {
+
+								collidable[row][col] = true;
+
+								bricksLeft += 1;
+							}
+
+							else if (isCollidable == "FF") {
+
+								collidable[row][col] = false;
+							}
+
+						}
+
+					}
+
+				}
+			}
+
+	loadLevel.close();
+}
+
+
+
+void App::PlayLevel() {
+
+	LoadLevel();
+
+	cout << bricksLeft;
+
+	gameMusic.play();
+
+	gameState = States::game;
+
+
+}
+
+
+
+//Runs in Draw
 
 void App::DrawGameState() {
 
@@ -940,20 +1099,14 @@ void App::DrawGameState() {
 		// State 1 = GameOver State
 		window.draw(endText);
 
-		for (int i = 0; i < buttonIndex; i++) {
-			window.draw(button[i]);
-			window.draw(buttonText[i]);
-		}
+		DrawButtons();
 		break;
 
 	case States::winScreen:
 		// State 2 = Win State
 		window.draw(endText);
 
-		for (int i = 0; i < buttonIndex; i++) {
-			window.draw(button[i]);
-			window.draw(buttonText[i]);
-		}
+		DrawButtons();
 
 		break;
 
@@ -961,10 +1114,7 @@ void App::DrawGameState() {
 		// State 3 = Menu State
 		window.draw(mainText);
 
-		for (int i = 0; i < buttonIndex; i++) {
-			window.draw(button[i]);
-			window.draw(buttonText[i]);
-		}
+		DrawButtons();
 		break;
 
 	case States::levelEditor:
@@ -985,14 +1135,36 @@ void App::DrawGameState() {
 			}
 		}
 
+		DrawButtons();
+
+
+	default:
+		break;
+
+	}
+}
+
+
+
+void App::DrawButtons() {
+
+	if (gameState == States::levelEditor) {
+
 		for (int i = 0; i < buttonIndex; ++i) {
 
 			window.draw(button[i]);
 			window.draw(buttonText[i]);
 		}
-		
-
-	default:
-		break;
 	}
+
+	else {
+
+		for (int i = 0; i < (buttonIndex - 2); i++) {
+			window.draw(button[i]);
+			window.draw(buttonText[i]);
+		}
+	}
+
+
 }
+	

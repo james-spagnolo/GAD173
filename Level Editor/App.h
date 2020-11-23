@@ -10,7 +10,7 @@ using namespace std;
 
 const int ROWS = 3;
 const int COLS = 5;
-const int buttonIndex = 2;
+const int buttonIndex = 4;
 const int brickIndex = 6;
 const int paddleIndex = 3;
 const int ballIndex = 6;
@@ -93,14 +93,16 @@ private:
 	sf::Color scoreColour;
 	sf::Color livesColour;
 
-	bool endState;
+	
 	bool playingSoundEffect;
+	bool savingLevel;
 	float textGap;
 	int state;
 	int playerScore;
 	int playerLives;
 	int brickPoints;
 	int bricksLeft;
+	int levelBricks;
 
 	
 	//Music and Audio
@@ -120,6 +122,10 @@ private:
 
 
 	ofstream myfile;
+
+	ofstream savedLevel;
+
+	ifstream loadLevel;
 
 
 	//Textures and Sprites
@@ -171,9 +177,17 @@ private:
 
 	void ButtonEvent(); //Handles Buttons
 
+	void SaveLevel(); //Handles saving the level to disk in level editor
+
+	void LoadLevel(); //Loads saved level
+
+	void PlayLevel(); //Plays saved Level
+
 	//APP DRAW
 
 	void DrawGameState(); //Draws the current Game state
+
+	void DrawButtons(); //Draws Buttons
 	
 
 
