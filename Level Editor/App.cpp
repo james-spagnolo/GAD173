@@ -1,7 +1,5 @@
 #include "App.h"
-#include "Brick.h"
 
-//using namespace std;
 
 //Constructor
 App::App(const char* title, int screenWidth, int screenHeight, int screenBpp)
@@ -15,25 +13,14 @@ App::App(const char* title, int screenWidth, int screenHeight, int screenBpp)
 App::~App()
 {
 	//Release Memory
-	//myfile.close();
 
 	savedLevel.close();
 
 	// release the memory for the dynamically allocated array
 	for (int i = 0; i < ROWS; ++i) {
 
-		//delete[] bricks[i];
-		//delete[] collidable[i];
-
-		//delete[] b[i];
-
 		delete[] bricks[i];
 	}
-
-	//delete[] bricks;
-	//delete[] collidable;
-
-	//delete[] b;
 
 	delete[] bricks;
 }
@@ -44,13 +31,7 @@ bool App::Init()
 	//Initialize App data members
 	
 
-	//myfile.open("Brick Positions.txt");
-
 	fstream savedLevel("SavedBricks.txt", ios::out);
-
-	//savedLevel.open("Saved Bricks.txt");
-
-	//savedLevel.open("Saved Level Brick Positions.txt");
 
 	SetupGraphics(); //Initializes Sprites & Textures
 
@@ -87,18 +68,18 @@ void App::Update()
 		BallAndWall(); //Handles Ball & Wall collisions
 
 		BallAndBricks(); //Handles Ball & Brick Collisions
+
+		CheckBricks();
+
+		UpgradeAndPaddle();
+
+		EnemyAI();
 	}
 	
 
-	CheckBricks();
-
-	UpgradeAndPaddle();
-
-	EnemyAI();
+	
 		
 	RefreshUI(); //Refresh UI every frame
-
-	//RefreshBricks();
 
 	SaveLevel();
 
@@ -207,7 +188,6 @@ void App::SetupPaddle() {
 
 	paddle.setPosition(0.5f*window.getSize().x - 0.5f*paddle.GetSize().x, window.getSize().y - (1.2f * paddle.GetSize().y));
 
-	//paddle.setSize(paddle.GetSize());
 
 	//Sets paddle values to default values (makes sure upgrades don't carry over when player "retries"
 	paddle.setSize(paddle.GetDefaultSize());
@@ -215,21 +195,6 @@ void App::SetupPaddle() {
 
 
 	paddle.sprite.setPosition(paddle.getPosition());
-
-	/*
-		//Setup Paddle Sprites
-	for (int i = 0; i < paddleIndex; i++) {
-
-
-		paddleSprite[i].setTexture(breakoutParts);
-		paddleSprite[i].setScale(sf::Vector2f(paddleScale, paddleScale));
-		paddleSprite[i].setPosition(window.getSize().x / 2, window.getSize().y * 0.8);
-
-
-		paddleSprite[i].setTextureRect(sf::IntRect(8 + i * 68, 151, paddleWidth, paddleHeight));
-	}
-	*/
-	
 
 	currentPaddle = rand() % (paddleIndex + 1);
 
@@ -399,10 +364,6 @@ void App::SetupAudio() {
 	winScreenSound.setBuffer(winScreenBuffer);
 	paddleHitSound.setBuffer(paddleHitBuffer);
 
-
-	//Play Game Music on Initialization
-	//gameMusic.play();
-
 }
 
 
@@ -413,6 +374,7 @@ void App::SetupGraphics() {
 	if (!breakoutParts.loadFromFile("Assets/Textures/Breakout_Pieces.png"))
 	{
 		//Error
+		cout << "Couldn't load Breakout_Pieces.png";
 	}
 
 	
@@ -460,8 +422,7 @@ void App::SetupArrayOfBricks() {
 	
 	bricksLeft = 0;
 
-	//bricks = new sf::Sprite * [ROWS];
-	//collidable = new bool* [ROWS];
+
 
 	bricks = new Brick * [ROWS];
 
@@ -469,6 +430,9 @@ void App::SetupArrayOfBricks() {
 
 		bricks[row] = new Brick[COLS];
 	}
+
+
+
 
 	//Setup the Array of Bricks
 	for (int row = 0; row < ROWS; ++row)
@@ -496,40 +460,7 @@ void App::SetupArrayOfBricks() {
 
 			bricks[row][col].SetCollidable(true);
 
-			//cout << brick[row][col].GetHealth() << endl;
-
 			RefreshBricks();
-
-			//if (brick[row][col].GetCollidable()) { bricksLeft += 1; }
-			
-
-			//window.draw(bricks[row][col].sprite);
-
-			
-
-			//myfile << brick[row][col].sprite.getPosition().x << "\t" << brick[row][col].sprite.getPosition().y << "\n";
-
-			//brick[row][col].SetCollidable(true);
-
-
-			
-
-			//cout << brick[row][col].health << "\n";
-
-			//Picks a random sprite for the brick
-			//int randomBrick = rand() % brickIndex;
-
-			
-			//cout << bricks[ROWS - 1][COLS - 1].GetCollidable();
-			
-
-			//brick[row][col].SetSprite(brick[row][col].health);
-
-			//cout << brick[row][col].collidable << "\t";
-
-			//collidable[row][col] = true; //Set the brick to be destroyable
-
-			//collidable[row][col] = true; //Set the brick to be destroyable
 
 			
 		}
@@ -808,8 +739,6 @@ void App::BallAndBricks()   {
 
 				RefreshBricks();
 
-				//brick[row][col].SetSprite(brick[row][col].health);
-
 				if (bricks[row][col].GetCollidable() == false) {
 
 					bricksLeft -= 1; //Bricks remaining reduced by 1
@@ -817,14 +746,7 @@ void App::BallAndBricks()   {
 					cout << "Bricks Left: " << bricksLeft << endl;
 				}
 
-				//brick[row][col].SetCollidable(false);
-
-
 				brickSound.play(); // Play Brick Break Sound
-
-
-				//playerScore += brickPoints; //Score increased by brick point worth
-
 
 				// Check if all Bricks have been hit
 				if (bricksLeft <= 0)
@@ -869,6 +791,7 @@ void App::CheckBricks() {
 
 	bricksLeft = 0;
 
+	//For every collidable brick, increase bricksLeft by 1
 	for (int row = 0; row < ROWS; row++) {
 
 		for (int col = 0; col < COLS; col++) {
@@ -887,66 +810,65 @@ void App::UpgradeAndPaddle() {
 
 	
 
-	if (gameState == States::game) {
+	//Moves the upgrade down if it's collidable
+	if (upgrade.GetCollidable()) {
 
-		//Moves the upgrade down if it's collidable
+		upgrade.sprite.move(0, upgrade.GetSpeed() * deltaTime);
+	}
+
+	//Checks if the upgrade and paddle collide
+	if (upgrade.sprite.getGlobalBounds().intersects(paddle.sprite.getGlobalBounds())) {
+
 		if (upgrade.GetCollidable()) {
 
-			upgrade.sprite.move(0, upgrade.GetSpeed() * deltaTime);
-		}
+			upgrade.SetCollidable(false);
 
-		//Checks if the upgrade and paddle collide
-		if (upgrade.sprite.getGlobalBounds().intersects(paddle.sprite.getGlobalBounds())) {
+			collectedUpgrade = true;
 
-			if (upgrade.GetCollidable()) {
+			hasUpgrade = true;
 
-				upgrade.SetCollidable(false);
-
-				collectedUpgrade = true;
-
-				hasUpgrade = true;
-
-				playerScore += upgradeScore;
+			playerScore += upgradeScore;
 				
-			}
 		}
-
-
-		if (hasUpgrade) {
-
-			Upgrade();
-			upgradeClock.restart();
-			hasUpgrade = false;
-
-		}
-
-		upgradeTime = upgradeClock.getElapsedTime();
-
-		if (upgradeTime < upgrade.textTimer) {
-
-			showUpgradeText = true;
-		}
-		else {
-
-			showUpgradeText = false;
-		}
-		
 	}
+
+	//If player has upgrade, Runs Upgrade method and restarts upgrade clock
+	if (hasUpgrade) {
+
+		Upgrade();
+		upgradeClock.restart();
+		hasUpgrade = false;
+
+	}
+
+	upgradeTime = upgradeClock.getElapsedTime();
+
+	//Show upgrade text for a short time after an upgrade is collected
+	if (upgradeTime < upgrade.textTimer) {
+
+		showUpgradeText = true;
+	}
+	else {
+
+		showUpgradeText = false;
+	}
+		
 }
 
 
 
 void App::EnemyDropAndPaddle() {
 
+	//If paddle and enemy drop collide
 	if (enemyDrop.sprite.getGlobalBounds().intersects(paddle.sprite.getGlobalBounds())) {
 
-				playerLives -= 1;
+				playerLives -= 1; //Player loses a life
 
-				playerScore -= upgradeScore;
+				playerScore -= upgradeScore; //Player loses some score
 
-				paddleHitSound.play();
+				paddleHitSound.play(); //Sound effect is played
 
-				enemyDrop.SetCollidable(false);
+				enemyDrop.SetCollidable(false); //Enemy drop no longer collidable
 			
 	}
 }
@@ -958,8 +880,8 @@ void App::EnemyAI() {
 	if (gameState == States::game) {
 
 		
-
 		firingTime = firingClock.getElapsedTime();
+
 
 		if (enemy.GetCollidable()) {
 
@@ -967,8 +889,6 @@ void App::EnemyAI() {
 			if (firingTime >= enemy.GetFireRate()) {
 
 				enemyFiring = true;
-
-				//cout << firingTime.asSeconds();
 			}
 
 
@@ -977,8 +897,6 @@ void App::EnemyAI() {
 				enemyDrop.SetCollidable(true);
 
 				enemyDrop.sprite.setPosition(enemy.sprite.getPosition());
-
-				//cout << enemyDrop.sprite.getPosition().x << "\t" << enemyDrop.sprite.getPosition().y << endl;
 
 				firingClock.restart();
 
@@ -1168,9 +1086,9 @@ void App::RefreshBricks() {
 			switch (bricks[row][col].GetHealth())
 			{
 			case 0: break;
-			case 1: bricks[row][col].SetSprite(2); break;
-			case 2: bricks[row][col].SetSprite(3); break;
-			case 3: bricks[row][col].SetSprite(0); break;
+			case 1: bricks[row][col].SetSprite(2); break; //Red
+			case 2: bricks[row][col].SetSprite(3); break; //Purple
+			case 3: bricks[row][col].SetSprite(0); break; //Blue
 			case 4: bricks[row][col].SetSprite(1); break; //Green
 			case 5: bricks[row][col].SetSprite(4); break; //Yellow
 			case 6: bricks[row][col].SetSprite(6); break; //Brown

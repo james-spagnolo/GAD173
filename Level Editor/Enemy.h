@@ -61,9 +61,6 @@ class Enemy : public sf::RectangleShape {
 
 	private:
 
-		const int ROWS = 8;
-		const int COLS = 12;
-
 		sf::Texture texture;
 
 		float width = 48;
