@@ -6,14 +6,21 @@
 #include <iostream>
 #include <fstream>
 
+#include "Brick.h"
+#include "Item.h"
+#include "Enemy.h"
+#include "Ball.h"
+#include "Paddle.h"
+
 using namespace std;
 
 const int ROWS = 3;
-const int COLS = 5;
+const int COLS = 8;
 const int buttonIndex = 4;
 const int brickIndex = 6;
 const int paddleIndex = 3;
 const int ballIndex = 6;
+const int upgradeIndex = 3;
 
 
 class App
@@ -28,6 +35,9 @@ private:
 	float deltaTime;
 
 	//Paddle
+	
+	Paddle paddle;
+
 	sf::Sprite paddleSprite[paddleIndex];
 	float paddleWidth;
 	float paddleHeight;
@@ -39,10 +49,14 @@ private:
 
 
 	//Ball
+
+	Ball ball;
+
 	sf::Sprite ballSprite[ballIndex];
 	float radius;
 	float ballScale;
 	float scaledRadius;
+	float ballSpeed;
 	float xSpeed;
 	float ySpeed;
 	float xStart;
@@ -67,10 +81,54 @@ private:
 	float edgeGap;
 
 	//Pointer
-	sf::Sprite** bricks;
-	bool** collidable;
+	//sf::Sprite** bricks;
+	//bool** collidable;
 
 
+	Brick** bricks;
+
+	Brick brick;
+
+
+	//Items
+	Item upgrade;
+
+	enum class Upgrades { LargerPaddle, PaddleSpeed, LargerBall, FireBall };
+
+	Upgrades upgradeState;
+
+	sf::Clock spawnClock;
+	sf::Time spawnTime;
+
+	sf::Clock upgradeClock;
+	sf::Time upgradeTime;
+
+	sf::Text upgradeText;
+
+	float upgradeLimit;
+
+	int upgradeScore;
+
+	bool upgradeSpawned;
+	bool collectedUpgrade;
+	bool hasUpgrade;
+	bool showUpgradeText;
+
+
+	Enemy enemy;
+	Item enemyDrop;
+
+	sf::Clock firingClock;
+	sf::Time firingTime;
+
+	sf::Clock animationClock;
+
+	bool enemyMovingRight;
+	bool enemyFiring;
+
+	int currentEnemy = 0;
+
+	
 	//Menu Screen
 	
 	float buttonHeight;
@@ -85,11 +143,17 @@ private:
 
 
 	//Game Logic and UI
+	enum class States { game, gameOver, winScreen, menu, levelEditor };
+
+	States gameState;
+
+
 	sf::Font font;
 	sf::Text scoreText;
 	sf::Text livesText;
 	sf::Text endText;
 	sf::Text mainText;
+	
 	sf::Color scoreColour;
 	sf::Color livesColour;
 
@@ -118,6 +182,9 @@ private:
 	sf::SoundBuffer missedBallBuffer;
 	sf::Sound missedBallSound;
 
+	sf::SoundBuffer paddleHitBuffer;
+	sf::Sound paddleHitSound;
+
 	sf::Music gameMusic;
 
 
@@ -127,6 +194,9 @@ private:
 
 	ifstream loadLevel;
 
+	ifstream levelOne;
+	ifstream levelTwo;
+
 
 	//Textures and Sprites
 	sf::Texture breakoutParts;
@@ -135,14 +205,13 @@ private:
 
 	int currentPaddle;
 
-	enum class States { game, gameOver, winScreen, menu, levelEditor};
-
-	States gameState;
+	
 
 
 	//Custom Methods
 
 	void RestartGame(); //Restarts Game
+
 
 	//APP INIT
 	void SetupPaddle(); //Initializes Paddle
@@ -159,6 +228,9 @@ private:
 
 	void SetupArrayOfBricks(); //Initializes Bricks
 
+	void SetupEnemy();
+
+
 
 	//APP UPDATE
 
@@ -169,19 +241,38 @@ private:
 	void BallAndWall(); //Handles Ball & Wall collisions
 
 	void BallAndBricks(); //Handles Ball & Brick collisions
+
+	void CheckBricks();
+
+	void EnemyAI();
+
+	void EnemyDropAndPaddle();
+
+	void UpgradeSpawner(); //Checks when to spawn an upgrade
+
+	void UpgradeAndPaddle(); //Handles Upgrade & Paddle collision
 	
 	void RefreshUI(); //Refreshes UI every frame
+
+	void RefreshBricks();
+
 
 	
 	//APP EVENTS
 
 	void ButtonEvent(); //Handles Buttons
 
+	void SpawnUpgrade(); //Spawns Upgrade
+
+	void Upgrade(); //Upgrades player
+
 	void SaveLevel(); //Handles saving the level to disk in level editor
 
 	void LoadLevel(); //Loads saved level
 
 	void PlayLevel(); //Plays saved Level
+
+
 
 	//APP DRAW
 

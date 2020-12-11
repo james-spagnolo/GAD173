@@ -2,7 +2,11 @@
 
 int main()
 {
-	App game("Level Editor", 800, 600, 32);
+
+	srand(time(NULL));
+
+
+	App game("Level Editor", 800, 800, 32);
 
 	if (!game.Init())
 	{

@@ -1,4 +1,5 @@
 #include "App.h"
+#include "Brick.h"
 
 //using namespace std;
 
@@ -14,19 +15,27 @@ App::App(const char* title, int screenWidth, int screenHeight, int screenBpp)
 App::~App()
 {
 	//Release Memory
-	myfile.close();
+	//myfile.close();
 
 	savedLevel.close();
 
 	// release the memory for the dynamically allocated array
 	for (int i = 0; i < ROWS; ++i) {
 
+		//delete[] bricks[i];
+		//delete[] collidable[i];
+
+		//delete[] b[i];
+
 		delete[] bricks[i];
-		delete[] collidable[i];
 	}
 
+	//delete[] bricks;
+	//delete[] collidable;
+
+	//delete[] b;
+
 	delete[] bricks;
-	delete[] collidable;
 }
 
 
@@ -35,7 +44,7 @@ bool App::Init()
 	//Initialize App data members
 	
 
-	myfile.open("Brick Positions.txt");
+	//myfile.open("Brick Positions.txt");
 
 	fstream savedLevel("SavedBricks.txt", ios::out);
 
@@ -56,6 +65,8 @@ bool App::Init()
 	SetupGameLogic(); //Initializes GameLogic members
 
 	SetupArrayOfBricks(); //Initializes 2D array of Bricks
+
+	SetupEnemy();
 	
 
 	return true;
@@ -69,15 +80,29 @@ void App::Update()
 	
 	CheckGameState(); //Checks GameState every frame
 
-	BallAndPaddle(); //Handles Ball & Paddle Movement / Collision
-	
-	BallAndWall(); //Handles Ball & Wall collisions
+	if (gameState == States::game) {
 
-	BallAndBricks(); //Handles Ball & Brick Collisions
+		BallAndPaddle(); //Handles Ball & Paddle Movement / Collision
+
+		BallAndWall(); //Handles Ball & Wall collisions
+
+		BallAndBricks(); //Handles Ball & Brick Collisions
+	}
+	
+
+	CheckBricks();
+
+	UpgradeAndPaddle();
+
+	EnemyAI();
 		
 	RefreshUI(); //Refresh UI every frame
 
+	//RefreshBricks();
+
 	SaveLevel();
+
+	
 
 }
 
@@ -107,6 +132,18 @@ void App::HandleEvents()
 
 	ButtonEvent();
 
+	if (gameState == States::game) {
+
+		UpgradeSpawner();
+
+		if (collectedUpgrade) {
+
+			upgradeClock.restart();
+			collectedUpgrade = false;
+		}
+	}
+
+	// Mouse events with level editor
 	if (gameState == States::levelEditor)
 	{
 		if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
@@ -117,13 +154,13 @@ void App::HandleEvents()
 			{
 				for (int col = 0; col < COLS; ++col)
 				{
-					if (bricks[row][col].getGlobalBounds().contains(sf::Vector2f(localPosition)))
+					if (bricks[row][col].sprite.getGlobalBounds().contains(sf::Vector2f(localPosition)))
 					{
 						bool click = false;
 
 						if (!click) {
 
-							collidable[row][col] = !collidable[row][col];
+							bricks[row][col].SetCollidable(!bricks[row][col].GetCollidable());
 							click = true;
 						}
 						
@@ -164,19 +201,23 @@ void App::Run()
 void App::SetupPaddle() {
 
 	//Paddle Variables
-	paddleHeight = 20;
-	paddleWidth = 64;
-
-	paddleScale = 2;
-
-	scaledPaddleHeight = paddleHeight * paddleScale;
-	scaledPaddleWidth = paddleWidth * paddleScale;
-
-	speed = 350; //Paddle Movement Speed
+	
 
 	pad = 25; //Padding used to smoothen Collision Detection
 
-	//Setup Paddle Sprites
+	paddle.setPosition(0.5f*window.getSize().x - 0.5f*paddle.GetSize().x, window.getSize().y - (1.2f * paddle.GetSize().y));
+
+	//paddle.setSize(paddle.GetSize());
+
+	//Sets paddle values to default values (makes sure upgrades don't carry over when player "retries"
+	paddle.setSize(paddle.GetDefaultSize());
+	paddle.SetSpeed(paddle.GetDefaultSpeed());
+
+
+	paddle.sprite.setPosition(paddle.getPosition());
+
+	/*
+		//Setup Paddle Sprites
 	for (int i = 0; i < paddleIndex; i++) {
 
 
@@ -187,39 +228,44 @@ void App::SetupPaddle() {
 
 		paddleSprite[i].setTextureRect(sf::IntRect(8 + i * 68, 151, paddleWidth, paddleHeight));
 	}
+	*/
+	
 
-	currentPaddle = 2;
+	currentPaddle = rand() % (paddleIndex + 1);
+
+	paddle.SetSprite(currentPaddle);
+
+	
 }
 
 
 
 void App::SetupBall() {
 
-	//Ball
-	radius = 4;
-	ballScale = 1.2;
-	scaledRadius = floor(radius * ballScale);
+	
+	ballSpeed = rand() % 100 + 400;
+
+	xSpeed = ballSpeed; //Ball Speed (randomised for variation)
+	ySpeed = -ballSpeed; //Ball Speed (randomised for variation)
 
 
-	xSpeed = rand() % 100 + 400; //Ball Speed (randomised for variation)
-	ySpeed = -(rand() % 100 + 400); //Ball Speed (randomised for variation)
+	xStart = paddle.sprite.getPosition().x + 0.5f*paddle.GetSize().x - ball.GetRadius();
+	yStart = paddle.sprite.getPosition().y + (2*ball.GetRadius());
 
+	ball.setPosition(xStart, yStart);
 
-	xStart = paddleSprite[currentPaddle].getPosition().x; //Ball Initial x Position
-	yStart = paddleSprite[currentPaddle].getPosition().y - (2 * scaledRadius + pad); //Ball Initial y Position
+	ball.sprite.setPosition(ball.getPosition());
 
+	ball.setRadius(ball.GetDefaultRadius());
+	ball.SetPower(ball.GetDefaultPower());
 
-	//Setup Ball Sprites
-	for (int i = 0; i < ballIndex; i++) {
+	
 
-		ballSprite[i].setTexture(breakoutParts);
-		ballSprite[i].setScale(sf::Vector2f(scaledRadius, scaledRadius));
-		ballSprite[i].setPosition(xStart, yStart);
+	currentBall = rand() % (ballIndex + 1);
 
-		ballSprite[i].setTextureRect(sf::IntRect(48 + 9 * i, 136, 8, 8));
-	}
+	ball.SetSprite(currentBall);
 
-	currentBall = rand() % ballIndex;
+	
 }
 
 
@@ -269,7 +315,12 @@ void App::SetupUI() {
 	mainText.setFillColor(sf::Color::White);
 	mainText.setCharacterSize(48);
 
-
+	//Upgrade Text Setup
+	upgradeText.setFont(font);
+	upgradeText.setPosition(window.getSize().x / 2, paddle.getPosition().y - 2*upgradeText.getGlobalBounds().height);
+	upgradeText.setString("");
+	upgradeText.setFillColor(sf::Color::Blue);
+	upgradeText.setCharacterSize(48);
 
 	//Button Setup
 
@@ -317,16 +368,36 @@ void App::SetupUI() {
 void App::SetupAudio() {
 
 	//Setup Sound files
-	if (!brickBuffer.loadFromFile("Assets/Audio/BrickBreak.wav")) {}
-	if (!missedBallBuffer.loadFromFile("Assets/Audio/MissedBall.wav"))
-	if (!gameOverBuffer.loadFromFile("Assets/Audio/GameOver.ogg")) {}
-	if (!winScreenBuffer.loadFromFile("Assets/Audio/WinSound.ogg")) {}
-	if (!gameMusic.openFromFile("Assets/Audio/GameMusic.wav")) {}
+	if (!brickBuffer.loadFromFile("Assets/Audio/BrickBreak.wav")) {
+		cout << "Couldn't load BrickBreak.wav";
+	}
+
+	if (!missedBallBuffer.loadFromFile("Assets/Audio/MissedBall.wav")) {
+		cout << "Couldn't load MissedBall.wav";
+	}
+
+	if (!gameOverBuffer.loadFromFile("Assets/Audio/GameOver.ogg")) {
+		cout << "Couldn't load GameOver.ogg";
+	}
+
+	if (!winScreenBuffer.loadFromFile("Assets/Audio/WinSound.ogg")) {
+		cout << "Couldn't load WinSound.ogg";
+	}
+
+	if (!paddleHitBuffer.loadFromFile("Assets/Audio/PaddleHit.wav")) {
+		cout << "Couldn't load PaddleHit.wav";
+	}
+
+	if (!gameMusic.openFromFile("Assets/Audio/GameMusic.wav")) {
+		cout << "Couldn't load GameMusic.wav";
+	}
+
 
 	brickSound.setBuffer(brickBuffer);
 	missedBallSound.setBuffer(missedBallBuffer);
 	gameOverSound.setBuffer(gameOverBuffer);
 	winScreenSound.setBuffer(winScreenBuffer);
+	paddleHitSound.setBuffer(paddleHitBuffer);
 
 
 	//Play Game Music on Initialization
@@ -355,7 +426,7 @@ void App::SetupGameLogic() {
 	//Game Logic Variables
 	playerScore = 0; //Tracks Players Score - Starts at 0 and increases
 
-	playerLives = 5; //Tracks Players Lives - Starts at 5 and drops to 0
+	playerLives = 6; //Tracks Players Lives - Starts at 5 and drops to 0
 
 	brickPoints = 10; //Tracks how many points Bricks are worth
 
@@ -368,6 +439,13 @@ void App::SetupGameLogic() {
 	savingLevel = false;
 
 	playingSoundEffect = false; //Tracks if a sound effect is being played
+
+	upgradeSpawned = false;
+	collectedUpgrade = false;
+	hasUpgrade = false;
+
+	upgradeLimit = 10.0f;
+	upgradeScore = 25;
 }
 
 
@@ -375,21 +453,21 @@ void App::SetupGameLogic() {
 void App::SetupArrayOfBricks() {
 
 	//Brick Variables
-	brickScale = 2;
+	
+	//Sets up gaps between bricks
+	gap = brick.GetSize().x / 2;
+	edgeGap = (window.getSize().x - COLS * brick.GetSize().x - (COLS - 1) * gap) / 2;
+	
+	bricksLeft = 0;
 
-	brickHeight = 16;
-	brickWidth = 32;
+	//bricks = new sf::Sprite * [ROWS];
+	//collidable = new bool* [ROWS];
 
-	gap = 50;
-	edgeGap = (window.getSize().x - COLS * brickWidth - (COLS - 1) * gap) / 2;
-
-	bricks = new sf::Sprite * [ROWS];
-	collidable = new bool* [ROWS];
+	bricks = new Brick * [ROWS];
 
 	for (int row = 0; row < ROWS; ++row) {
 
-		bricks[row] = new sf::Sprite[COLS];
-		collidable[row] = new bool[COLS];
+		bricks[row] = new Brick[COLS];
 	}
 
 	//Setup the Array of Bricks
@@ -400,35 +478,86 @@ void App::SetupArrayOfBricks() {
 		for (int col = 0; col < COLS; ++col)
 		{
 			
-			//Sets the texture for the bricks
-			bricks[row][col].setTexture(breakoutParts);
 
-			//Picks a random sprite for the brick
-			int randomBrick = rand() % brickIndex;
-			
-			//Sets the sprite for the brick based on randomBrick
-			bricks[row][col].setTextureRect(sf::IntRect(8, 8 + 20 * randomBrick, 32, 16));
 
-			bricks[row][col].setScale(sf::Vector2f(brickScale, brickScale));
-			
-			
+			//Sets up array of bricks
+			bricks[row][col].setPosition(edgeGap + col * (bricks[row][col].GetSize().x + gap), 4*gap + row * (bricks[row][col].GetSize().y + gap));
+
+			bricks[row][col].setSize(bricks[row][col].GetSize());
+
 
 			//Sets the position of each brick
-			bricks[row][col].setPosition(edgeGap + col * (brickWidth + gap), gap + row * (brickHeight + gap));
+			bricks[row][col].sprite.setPosition(bricks[row][col].getPosition());
 
-			myfile << bricks[row][col].getPosition().x << "\t" << bricks[row][col].getPosition().y << "\n";
 
+			int randomHealth = rand() % (bricks[row][col].GetMaxHealth()) + 1;
+
+			bricks[row][col].SetHealth(randomHealth);
+
+			bricks[row][col].SetCollidable(true);
+
+			//cout << brick[row][col].GetHealth() << endl;
+
+			RefreshBricks();
+
+			//if (brick[row][col].GetCollidable()) { bricksLeft += 1; }
+			
+
+			//window.draw(bricks[row][col].sprite);
+
+			
+
+			//myfile << brick[row][col].sprite.getPosition().x << "\t" << brick[row][col].sprite.getPosition().y << "\n";
+
+			//brick[row][col].SetCollidable(true);
+
+
+			
+
+			//cout << brick[row][col].health << "\n";
+
+			//Picks a random sprite for the brick
+			//int randomBrick = rand() % brickIndex;
+
+			
+			//cout << bricks[ROWS - 1][COLS - 1].GetCollidable();
+			
+
+			//brick[row][col].SetSprite(brick[row][col].health);
+
+			//cout << brick[row][col].collidable << "\t";
 
 			//collidable[row][col] = true; //Set the brick to be destroyable
 
-			collidable[row][col] = true; //Set the brick to be destroyable
+			//collidable[row][col] = true; //Set the brick to be destroyable
 
-			bricksLeft += 1; //Increase bricks left by 1 for every brick created
-
-			window.draw(bricks[row][col]);
+			
 		}
 
 	}
+}
+
+
+
+void App::SetupEnemy() {
+
+	enemy.setPosition(0.5f * window.getSize().x - 0.5f * enemy.GetSize().x, livesText.getGlobalBounds().height);
+	enemy.sprite.setPosition(enemy.getPosition());
+
+	enemy.SetSpriteSheet(0);
+
+	enemyMovingRight = true;
+	enemyFiring = false;
+
+	enemyDrop.SetCollidable(false);
+
+	enemyDrop.SetSprite(5);
+
+	enemyDrop.sprite.setScale(2, 2);
+
+	enemyDrop.setPosition(enemy.sprite.getPosition());
+	enemyDrop.sprite.setPosition(enemyDrop.getPosition());
+
 }
 
 
@@ -445,6 +574,8 @@ void App::CheckGameState() {
 	case States::game:
 		// State 0 = Play State
 		endText.setString("");
+
+		
 		break;
 
 	case States::gameOver:
@@ -503,21 +634,17 @@ void App::CheckGameState() {
 
 void App::BallAndPaddle() {
 
-	// Handles Ball / Paddle Movement based on game state
-	if (gameState == States::game)
-	{
-
 		// Left Paddle Movement - (Left Key Pressed)
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
 		{
 
 			// Checks if the paddle's position is greater than the left bound of the screen
-			if (paddleSprite[currentPaddle].getPosition().x >= 0)
+			if (paddle.sprite.getPosition().x >= 0)
 			{
 
 				// Moves the paddle towards the left by paddle speed
 				// Multiplied by deltaTime to keep it frame rate dependant
-				paddleSprite[currentPaddle].move(-speed * deltaTime, 0);
+				paddle.sprite.move(-paddle.GetSpeed() * deltaTime, 0);
 			}
 		}
 
@@ -527,40 +654,35 @@ void App::BallAndPaddle() {
 		{
 
 			// Checks that the paddles right bound won't intersect the right bound of the screen
-			if (paddleSprite[currentPaddle].getPosition().x <= window.getSize().x - scaledPaddleWidth)
+			if (paddle.sprite.getPosition().x <= window.getSize().x - paddle.GetSize().x)
 			{
 
 				// Moves the paddle towards the right by paddle speed
 				// Multiplied by deltaTime to keep it frame rate dependant
-				paddleSprite[currentPaddle].move(speed * deltaTime, 0);
+				paddle.sprite.move(paddle.GetSpeed() * deltaTime, 0);
 			}
 
 		}
 
 
 		// Move the ball based on speed and frame rate
-		ballSprite[currentBall].move(xSpeed * deltaTime, ySpeed * deltaTime);
-
-	}
+		ball.sprite.move(xSpeed * deltaTime, ySpeed * deltaTime);
 
 
 	// Check if the Ball collided with the Paddle
-	if (ballSprite[currentBall].getGlobalBounds().intersects(paddleSprite[currentPaddle].getGlobalBounds())) {
+	if (ball.sprite.getGlobalBounds().intersects(paddle.sprite.getGlobalBounds())) {
+
 
 		brickSound.play(); // Play Paddle Sound
 
-		//Generate Random Sign: -1 or +1
-		sign = 2 * (rand() % 2) - 1;
 
-
-		// Left or right border
+		// Ball hits Left or right border
 		if (
-			ballSprite[currentBall].getPosition().x > paddleSprite[currentPaddle].getPosition().x + scaledPaddleWidth - pad ||
-			ballSprite[currentBall].getPosition().x + 2 * scaledRadius < paddleSprite[currentPaddle].getPosition().x + pad
+			ball.sprite.getPosition().x > paddle.sprite.getPosition().x + paddle.GetSize().x - pad ||
+			ball.sprite.getPosition().x + 2 * ball.GetRadius() < paddle.sprite.getPosition().x + pad
 			)
 		{
 			// Reset position
-
 
 			// Reverse x speed
 			xSpeed = -xSpeed;
@@ -569,17 +691,26 @@ void App::BallAndPaddle() {
 
 		// Top or bottom border
 		if (
-			ballSprite[currentBall].getPosition().y + 2 * scaledRadius < paddleSprite[currentPaddle].getPosition().y + pad ||
-			ballSprite[currentBall].getPosition().y > paddleSprite[currentPaddle].getPosition().y + scaledPaddleHeight - pad
+			ball.sprite.getPosition().y + 2 * ball.GetRadius() < paddle.sprite.getPosition().y + pad ||
+			ball.sprite.getPosition().y > paddle.sprite.getPosition().y + ball.GetRadius() - pad
 			)
 		{
 			// Reset position
 
+			//If the middle of the ball hits left side of the paddle
+			if (ball.sprite.getPosition().x + ball.GetRadius() < paddle.sprite.getPosition().x + (paddle.GetSize().x / 2)) {
+
+				xSpeed = -ballSpeed;
+			}
+
+			//If the middle of the ball hits the right side of the paddle
+			else if (ball.sprite.getPosition().x + ball.GetRadius() > paddle.sprite.getPosition().x + (paddle.GetSize().x / 2)) {
+
+				xSpeed = ballSpeed;
+			}
+
 			// Reverse y speed
 			ySpeed = -ySpeed;
-
-			// Randomise Direction
-			xSpeed = sign * xSpeed;
 		}
 
 	}
@@ -591,10 +722,10 @@ void App::BallAndWall() {
 
 	// Left border collision detection
 	// Detects when the ball's left bound meets the screens left bound
-	if (ballSprite[currentBall].getPosition().x <= 0)
+	if (ball.sprite.getPosition().x <= 0)
 	{
 		// Reset Position of Ball
-		ballSprite[currentBall].setPosition(0, ballSprite[currentBall].getPosition().y);
+		ball.sprite.setPosition(0, ball.sprite.getPosition().y);
 
 		// Reverse horizontal velocity of the ball
 		xSpeed = -xSpeed;
@@ -603,10 +734,10 @@ void App::BallAndWall() {
 
 	// Right border collision detection
 	// Detects when the ball's right bound meets the screens right bound
-	if (ballSprite[currentBall].getPosition().x >= window.getSize().x - 2 * scaledRadius)
+	if (ball.sprite.getPosition().x >= window.getSize().x - 2 * ball.getRadius())
 	{
 		// Reset Position of Ball
-		ballSprite[currentBall].setPosition((window.getSize().x - 2 * radius), ballSprite[currentBall].getPosition().y);
+		ball.sprite.setPosition((window.getSize().x - 2 * ball.getRadius()), ball.sprite.getPosition().y);
 
 		// Reverse horizontal velocity of the ball
 		xSpeed = -xSpeed;
@@ -615,11 +746,11 @@ void App::BallAndWall() {
 
 	// Top border collision detection
 	// Detects when the ball's upper bound meets the screens upper bound
-	if (ballSprite[currentBall].getPosition().y <= 0)
+	if (ball.sprite.getPosition().y <= 0)
 	{
 
 		// Reset Position of Ball
-		ballSprite[currentBall].setPosition(ballSprite[currentBall].getPosition().x, 0);
+		ball.sprite.setPosition(ball.sprite.getPosition().x, 0);
 
 		// Reverse the vertical velocity of the ball
 		ySpeed = -ySpeed;
@@ -628,7 +759,7 @@ void App::BallAndWall() {
 
 	// Bottom border collision detection
 	// Detects when the ball's lower bound meets the screens lower bound
-	if (ballSprite[currentBall].getPosition().y >= window.getSize().y - 2 * scaledRadius) {
+	if (ball.sprite.getPosition().y >= window.getSize().y - 2 * ball.getRadius()) {
 
 		// Checks the game hasn't ended
 		if (playerLives > 0)
@@ -640,8 +771,10 @@ void App::BallAndWall() {
 
 		currentBall = rand() % ballIndex;
 
+		ball.SetSprite(currentBall);
+
 		// Reset the ball's position to be on top of the the middle of the paddle
-		ballSprite[currentBall].setPosition(paddleSprite[currentPaddle].getPosition().x + (scaledPaddleWidth / 2) - scaledRadius, paddleSprite[currentPaddle].getPosition().y - (2 * scaledRadius + pad));
+		ball.sprite.setPosition(paddle.sprite.getPosition().x + (paddle.getSize().x / 2) - ball.getRadius(), paddle.sprite.getPosition().y - (2 * ball.getRadius() + pad));
 
 		// Send the ball towards the bricks
 		ySpeed = -ySpeed;
@@ -650,7 +783,7 @@ void App::BallAndWall() {
 
 
 
-void App::BallAndBricks() {
+void App::BallAndBricks()   {
 
 	//For every row and collumn (for every brick)
 	for (int row = 0; row < ROWS; ++row)
@@ -660,20 +793,37 @@ void App::BallAndBricks() {
 		{
 
 			// Check IF the ball has hit the brick AND it hasn't already been hit
-			if (ballSprite[currentBall].getGlobalBounds().intersects(bricks[row][col].getGlobalBounds()) && collidable[row][col])
+			if (ball.sprite.getGlobalBounds().intersects(bricks[row][col].sprite.getGlobalBounds()) && bricks[row][col].GetCollidable())
 			{
 
 				// Destroy the brick - (It will no longer be collidable)
-				collidable[row][col] = false;
+				//collidable[row][col] = false;
+				int startHealth = bricks[row][col].GetHealth();
+
+				bricks[row][col].ChangeHealth(-ball.GetPower());
+
+				int endHealth = bricks[row][col].GetHealth();
+
+				playerScore += (startHealth - endHealth) * brickPoints;
+
+				RefreshBricks();
+
+				//brick[row][col].SetSprite(brick[row][col].health);
+
+				if (bricks[row][col].GetCollidable() == false) {
+
+					bricksLeft -= 1; //Bricks remaining reduced by 1
+
+					cout << "Bricks Left: " << bricksLeft << endl;
+				}
+
+				//brick[row][col].SetCollidable(false);
 
 
 				brickSound.play(); // Play Brick Break Sound
 
 
-				playerScore += brickPoints; //Score increased by brick point worth
-
-
-				bricksLeft -= 1; //Bricks remaining reduced by 1
+				//playerScore += brickPoints; //Score increased by brick point worth
 
 
 				// Check if all Bricks have been hit
@@ -685,8 +835,8 @@ void App::BallAndBricks() {
 
 				// Check IF the ball has hit the bricks Left OR Right border
 				if (
-					ballSprite[currentBall].getPosition().x > bricks[row][col].getPosition().x + brickWidth - pad ||
-					ballSprite[currentBall].getPosition().x + 2 * radius < bricks[row][col].getPosition().x + pad
+					ball.sprite.getPosition().x > bricks[row][col].sprite.getPosition().x + bricks[row][col].getSize().x - pad ||
+					ball.sprite.getPosition().x + 2*ball.getRadius() < bricks[row][col].sprite.getPosition().x + pad
 					)
 				{
 					// Reset position
@@ -697,8 +847,8 @@ void App::BallAndBricks() {
 
 				// Check IF the ball has hit the bricks Top OR Bottom border
 				if (
-					ballSprite[currentBall].getPosition().y + 2 * radius < bricks[row][col].getPosition().y + pad ||
-					ballSprite[currentBall].getPosition().y > bricks[row][col].getPosition().y + brickHeight - pad
+					ball.sprite.getPosition().y + 2*ball.getRadius() < bricks[row][col].sprite.getPosition().y + pad ||
+					ball.sprite.getPosition().y > bricks[row][col].sprite.getPosition().y + bricks[row][col].getSize().y - pad
 					)
 				{
 					// Reset position
@@ -711,6 +861,193 @@ void App::BallAndBricks() {
 		}
 	}
 
+}
+
+
+
+void App::CheckBricks() {
+
+	bricksLeft = 0;
+
+	for (int row = 0; row < ROWS; row++) {
+
+		for (int col = 0; col < COLS; col++) {
+
+			if (bricks[row][col].GetCollidable()) {
+
+				bricksLeft++;
+			}
+		}
+	}
+}
+
+
+
+void App::UpgradeAndPaddle() {
+
+	
+
+	if (gameState == States::game) {
+
+		//Moves the upgrade down if it's collidable
+		if (upgrade.GetCollidable()) {
+
+			upgrade.sprite.move(0, upgrade.GetSpeed() * deltaTime);
+		}
+
+		//Checks if the upgrade and paddle collide
+		if (upgrade.sprite.getGlobalBounds().intersects(paddle.sprite.getGlobalBounds())) {
+
+			if (upgrade.GetCollidable()) {
+
+				upgrade.SetCollidable(false);
+
+				collectedUpgrade = true;
+
+				hasUpgrade = true;
+
+				playerScore += upgradeScore;
+				
+			}
+		}
+
+
+		if (hasUpgrade) {
+
+			Upgrade();
+			upgradeClock.restart();
+			hasUpgrade = false;
+
+		}
+
+		upgradeTime = upgradeClock.getElapsedTime();
+
+		if (upgradeTime < upgrade.textTimer) {
+
+			showUpgradeText = true;
+		}
+		else {
+
+			showUpgradeText = false;
+		}
+		
+	}
+}
+
+
+
+void App::EnemyDropAndPaddle() {
+
+	if (enemyDrop.sprite.getGlobalBounds().intersects(paddle.sprite.getGlobalBounds())) {
+
+				playerLives -= 1;
+
+				playerScore -= upgradeScore;
+
+				paddleHitSound.play();
+
+				enemyDrop.SetCollidable(false);
+			
+	}
+}
+
+
+
+void App::EnemyAI() {
+
+	if (gameState == States::game) {
+
+		
+
+		firingTime = firingClock.getElapsedTime();
+
+		if (enemy.GetCollidable()) {
+
+
+			if (firingTime >= enemy.GetFireRate()) {
+
+				enemyFiring = true;
+
+				//cout << firingTime.asSeconds();
+			}
+
+
+			if (enemyFiring) {
+
+				enemyDrop.SetCollidable(true);
+
+				enemyDrop.sprite.setPosition(enemy.sprite.getPosition());
+
+				//cout << enemyDrop.sprite.getPosition().x << "\t" << enemyDrop.sprite.getPosition().y << endl;
+
+				firingClock.restart();
+
+				enemyFiring = false;
+			}
+
+			else {
+
+				//Enemy is moving
+
+				if ((enemy.sprite.getPosition().x < (window.getSize().x - enemy.GetSize().x)) && enemyMovingRight) {
+
+					//Move towards the right
+					enemy.sprite.move(enemy.GetSpeed() * deltaTime, 0);
+
+					if (enemy.sprite.getPosition().x > (window.getSize().x - 1.05f * enemy.GetSize().x)) {
+
+						enemyMovingRight = false;
+					}
+				}
+
+				if ((enemy.sprite.getPosition().x > 0) && enemyMovingRight == false) {
+
+					//Move towards the left
+					enemy.sprite.move(-enemy.GetSpeed() * deltaTime, 0);
+
+					if (enemy.sprite.getPosition().x < 0.05f * enemy.GetSize().x) {
+
+						enemyMovingRight = true;
+					}
+				}
+			}
+
+			if (animationClock.getElapsedTime() >= enemy.GetSpriteDuration()) {
+
+				if (enemy.GetSpriteCycle()) {
+
+					enemy.rect.left += enemy.spriteSize;
+
+					if (enemy.rect.left >= enemy.GetSpriteIndex() * enemy.spriteSize) {
+
+						enemy.SetSpriteCycle(false);
+					}
+				}
+				else {
+
+					enemy.rect.left -= enemy.spriteSize;
+
+					if (enemy.rect.left <= 0) {
+
+						enemy.SetSpriteCycle(true);
+					}
+				}
+
+				enemy.SetSpriteSheet(currentEnemy);
+				animationClock.restart();
+			}
+			
+		}
+
+
+
+		if (enemyDrop.GetCollidable()) {
+
+			EnemyDropAndPaddle();
+
+			enemyDrop.sprite.move(0, enemyDrop.GetSpeed() * deltaTime);
+		}
+	}
 }
 
 
@@ -817,6 +1154,32 @@ void App::RefreshUI() {
 	default:
 		break;
 	}
+
+}
+
+
+
+void App::RefreshBricks() {
+
+	for (int row = 0; row < ROWS; row++) {
+
+		for (int col = 0; col < COLS; col++) {
+
+			switch (bricks[row][col].GetHealth())
+			{
+			case 0: break;
+			case 1: bricks[row][col].SetSprite(2); break;
+			case 2: bricks[row][col].SetSprite(3); break;
+			case 3: bricks[row][col].SetSprite(0); break;
+			case 4: bricks[row][col].SetSprite(1); break; //Green
+			case 5: bricks[row][col].SetSprite(4); break; //Yellow
+			case 6: bricks[row][col].SetSprite(6); break; //Brown
+			case 7: bricks[row][col].SetSprite(5); break; //Silver
+			default: break;
+			}
+		}
+	}
+	
 }
 
 
@@ -834,6 +1197,8 @@ void App::RestartGame() {
 	SetupGameLogic(); //Initializes GameLogic members
 
 	SetupArrayOfBricks(); //Initializes 2D array of Bricks
+
+	SetupEnemy();
 }
 
 
@@ -951,6 +1316,132 @@ void App::ButtonEvent() {
 
 
 
+void App::UpgradeSpawner() {
+
+	
+
+	if (!upgradeSpawned) {
+
+		spawnClock.restart();
+		upgradeSpawned = true;
+	}
+	
+
+	spawnTime = spawnClock.getElapsedTime();
+
+	if (spawnTime >= upgrade.spawnTimer) {
+
+		SpawnUpgrade();
+		upgradeSpawned = false;
+	}
+}
+
+
+
+void App::SpawnUpgrade() {
+
+	//Choose a random upgrade
+	int randomUpgrade = rand() % (upgradeIndex + 1);
+
+	switch (randomUpgrade) {
+
+		case 0: upgradeState = Upgrades::LargerPaddle; break;
+		case 1: upgradeState = Upgrades::PaddleSpeed; break;
+		case 2: upgradeState = Upgrades::LargerBall; break;
+		case 3: upgradeState = Upgrades::FireBall; break;
+	}
+
+	//Set the upgrades sprite
+	switch (upgradeState) {
+
+		case Upgrades::LargerPaddle: 
+			upgrade.SetSprite(0);
+			break;
+
+		case Upgrades::PaddleSpeed:
+			upgrade.SetSprite(1);
+			break;
+
+		case Upgrades::LargerBall:
+			upgrade.SetSprite(2);
+			break;
+
+		case Upgrades::FireBall:
+			upgrade.SetSprite(3);
+			break;
+
+		default: break;
+
+	}
+
+	//Set the upgrades location
+	int spawnLocations = window.getSize().x - upgrade.GetSize().x;
+	float RandomSpawnLocation = rand() % spawnLocations;
+
+	upgrade.setPosition(RandomSpawnLocation, 0);
+	upgrade.sprite.setPosition(upgrade.getPosition());
+
+	//Set the upgrade to be collidable
+	upgrade.SetCollidable(true);
+
+
+}
+
+
+
+void App::Upgrade() {
+
+	switch (upgradeState) {
+
+	case Upgrades::LargerPaddle:
+
+		//Increase size of paddle
+		paddle.sprite.scale(paddle.GetSizeChange(), paddle.GetSizeChange());
+
+		//Reset paddles position
+		paddle.sprite.setPosition(paddle.sprite.getPosition().x, window.getSize().y - (1.5f * paddle.GetSize().y));
+
+		upgradeText.setString("PADDLE SIZE +");
+
+		break;
+	case Upgrades::PaddleSpeed:
+
+		paddle.SetSpeed(paddle.GetSpeed() * paddle.GetSpeedChange());
+
+		upgradeText.setString("PADDLE SPEED +");
+
+		cout << "Paddle Speed: " << paddle.GetSpeed() << endl;
+
+		break;
+
+	case Upgrades::LargerBall:
+
+		ball.sprite.scale(ball.GetSizeChange(), ball.GetSizeChange());
+
+		upgradeText.setString("BALL SIZE +");
+
+		cout << "x: " << ball.GetRadius() << endl;
+
+		break;
+
+	case Upgrades::FireBall:
+
+		ball.SetPower(ball.GetPower() + 1);
+
+		upgradeText.setString("BALL POWER +");
+
+		cout << "Ball Power: " << ball.GetPower() << endl;
+
+		break;
+
+	default: break;
+	}
+
+	upgradeText.setPosition(window.getSize().x / 2 - (upgradeText.getGlobalBounds().width / 2), paddle.getPosition().y - 2 * upgradeText.getGlobalBounds().height);
+}
+
+
+
 void App::SaveLevel() {
 
 	
@@ -964,7 +1455,7 @@ void App::SaveLevel() {
 
 			for (int col = 0; col < COLS; col++) {
 
-				if (collidable[row][col]) {
+				if (bricks[row][col].GetCollidable()) {
 
 					savedLevel << "TT";
 				}
@@ -1015,21 +1506,21 @@ void App::LoadLevel() {
 
 							loadLevel >> isCollidable;
 
-							collidable[row][col] = false;
+							bricks[row][col].SetCollidable(false);
 
 							
 
 
 							if (isCollidable == "TT") {
 
-								collidable[row][col] = true;
+								bricks[row][col].SetCollidable(true);
 
 								bricksLeft += 1;
 							}
 
 							else if (isCollidable == "FF") {
 
-								collidable[row][col] = false;
+								bricks[row][col].SetCollidable(false);
 							}
 
 						}
@@ -1071,8 +1562,28 @@ void App::DrawGameState() {
 		// State 0 = Play State
 		//window.draw(paddle);
 
-		window.draw(paddleSprite[currentPaddle]);
-		window.draw(ballSprite[currentBall]);
+		window.draw(paddle.sprite);
+		window.draw(ball.sprite);
+
+		if (upgrade.GetCollidable()) {
+			window.draw(upgrade.sprite);
+		}
+
+		if (enemy.GetCollidable()) {
+
+			window.draw(enemy.sprite);
+
+			if (enemyDrop.GetCollidable()) {
+
+				window.draw(enemyDrop.sprite);
+			}
+		}
+
+		if (showUpgradeText) {
+
+			window.draw(upgradeText);
+		}
+		
 
 		//Draw the Text
 		window.draw(scoreText);
@@ -1086,10 +1597,11 @@ void App::DrawGameState() {
 			for (int col = 0; col < COLS; ++col)
 			{
 				//If it hasn't been hit already
-				if (collidable[row][col])
+				if (bricks[row][col].GetCollidable())
 				{
+					
 					//Draw a brick
-					window.draw(bricks[row][col]);
+					window.draw(bricks[row][col].sprite);
 				}
 			}
 		}
@@ -1127,10 +1639,10 @@ void App::DrawGameState() {
 			for (int col = 0; col < COLS; ++col) {
 
 				//If it hasn't been hit already
-				if (collidable[row][col]) {
+				if (bricks[row][col].GetCollidable()) {
 
 					//Draw a brick
-					window.draw(bricks[row][col]);
+					window.draw(bricks[row][col].sprite);
 				}
 			}
 		}
